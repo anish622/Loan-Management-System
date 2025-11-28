@@ -1,0 +1,202 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Loan Management</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script>
+    // small helper to call AJAX for EMI
+    async function calcEmi(formId, resultId) {
+      const form = document.getElementById(formId);
+      const fd = new FormData(form);
+      const resp = await fetch('{{ url_for("ajax_calculate_emi") }}', {
+        method: 'POST',
+        body: fd
+      });
+      const j = await resp.json();
+      if (j.emi !== undefined) {
+        document.getElementById(resultId).innerText = "Calculated EMI: " + j.emi;
+      } else {
+        document.getElementById(resultId).innerText = "Error: " + (j.error || 'Unknown');
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <h1>Loan Management</h1>
+    <nav>
+      <a href="{{ url_for('home') }}">home</a>
+      <a href="{{ url_for('register_borrower') }}">register</a>
+      <a href="{{ url_for('user_login') }}">user-login</a>
+      <a href="{{ url_for('admin_login') }}">admin-login</a>
+      {% if user %}
+        <span class="muted">Signed in as {{ user.name }} ({{ user.role }})</span>
+        <a href="{{ url_for('logout') }}">logout</a>
+        <a href="{{ url_for('user_loans') }}">my-loans</a>
+        <a href="{{ url_for('create_loan') }}">create-loan</a>
+        {% if user.role == 'admin' %}
+          <a href="{{ url_for('admin_dashboard') }}">admin-dashboard</a>
+        {% endif %}
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+        {% for category, msg in messages %}
+          <div class="flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% if page == 'home' %}
+      <section>
+        <h2>Welcome</h2>
+        <p>Use the navigation links to register, login, create loans & enter payments.</p>
+      </section>
+    {% endif %}
+
+    {% if page == 'register' %}
+      <section>
+        <h2>Register borrower</h2>
+        <form method="post" action="{{ url_for('register_borrower') }}">
+          <label>Name<input name="name" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Password<input name="password" type="password" required></label>
+          <button type="submit">Register</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if page == 'user-login' %}
+      <section>
+        <h2>User Login</h2>
+        <form method="post" action="{{ url_for('user_login') }}">
+          <label>Email<input name="email" type="email" required></label>
+          <label>Password<input name="password" type="password" required></label>
+          <button type="submit">Login</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if page == 'admin-login' %}
+      <section>
+        <h2>Admin Login</h2>
+        <form method="post" action="{{ url_for('admin_login') }}">
+          <label>Email<input name="email" type="email" required></label>
+          <label>Password<input name="password" type="password" required></label>
+          <button type="submit">Admin Login</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if page == 'create-loan' %}
+      <section>
+        <h2>Create Loan</h2>
+        <form id="create-loan-form" method="post" action="{{ url_for('create_loan') }}">
+          <label>Principal (e.g., 100000)<input name="principal" required></label>
+          <label>Annual Rate (%) (e.g., 10)<input name="annual_rate" required></label>
+          <label>Term (months) (e.g., 24)<input name="term_months" required></label>
+          <label>Phone Number (for SMS notification, optional)<input name="phone_number" type="tel" placeholder="+1234567890"></label>
+          <div class="row">
+            <button type="button" onclick="calcEmi('create-loan-form','emi-result')">Calculate EMI</button>
+            <span id="emi-result" class="muted"></span>
+          </div>
+          <button type="submit">Create loan</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if page == 'loan-view' and loan %}
+      <section>
+        <h2>Loan #{{ loan.id }} (Borrower: {{ loan.borrower_name }})</h2>
+        <p>Principal: {{ loan.principal }} | Annual Rate: {{ loan.annual_rate }}% | Term: {{ loan.term_months }} months</p>
+        <p>EMI: {{ loan.emi }}</p>
+        <p>Total paid: {{ total_paid }} | Remaining: {{ remaining }}</p>
+
+        <h3>Payments</h3>
+        {% if payments %}
+          <table class="payments">
+            <tr><th>Amount</th><th>Payment date</th><th>Recorded at</th></tr>
+            {% for p in payments %}
+              <tr><td>{{ p.amount }}</td><td>{{ p.payment_date }}</td><td>{{ p.created_at }}</td></tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <p>No payments recorded yet.</p>
+        {% endif %}
+
+        <h3>Record a payment</h3>
+        <form method="post" action="{{ url_for('payment_entry') }}">
+          <input type="hidden" name="loan_id" value="{{ loan.id }}">
+          <label>Amount<input name="amount" required></label>
+          <label>Payment date<input name="payment_date" type="date" required></label>
+          <label>Phone Number (for SMS confirmation, optional)<input name="phone_number" type="tel" placeholder="+1234567890"></label>
+          <button type="submit">Submit payment</button>
+        </form>
+        <div style="margin-top:1rem">
+          <a class="button" href="{{ url_for('loan_download', loan_id=loan.id) }}">Download PDF</a>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if page == 'admin-dashboard' %}
+      <section>
+        <h2>Admin Dashboard</h2>
+        <h3>All Loans</h3>
+        <table class="simple">
+          <tr><th>ID</th><th>Borrower</th><th>Principal</th><th>EMI</th><th>Term</th><th>Created</th></tr>
+          {% for l in loans %}
+            <tr>
+              <td><a href="{{ url_for('loan_view', loan_id=l.id) }}">#{{ l.id }}</a></td>
+              <td>{{ l.borrower_name }} ({{ l.email }})</td>
+              <td>{{ l.principal }}</td>
+              <td>{{ l.emi }}</td>
+              <td>{{ l.term_months }}</td>
+              <td>{{ l.created_at }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </section>
+    {% endif %}
+
+    {% if page == 'user_loans' %}
+      <section>
+        <h2>Your Loans</h2>
+        {% if loans %}
+          <table class="simple">
+            <tr>
+              <th>ID</th><th>Principal</th><th>Annual Rate</th><th>Term (months)</th><th>EMI</th><th>Created At</th><th>Actions</th>
+            </tr>
+            {% for loan in loans %}
+              <tr>
+                <td><a href="{{ url_for('loan_view', loan_id=loan.id) }}">#{{ loan.id }}</a></td>
+                <td>{{ loan.principal }}</td>
+                <td>{{ loan.annual_rate }}%</td>
+                <td>{{ loan.term_months }}</td>
+                <td>{{ loan.emi }}</td>
+                <td>{{ loan.created_at }}</td>
+                <td><a href="{{ url_for('loan_view', loan_id=loan.id) }}">Details</a></td>
+              </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <p>You have not taken any loans yet.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Loan Management App • Anish Gowda</p>
+  </footer>
+</body>
+</html>
