@@ -89,14 +89,14 @@ The Loan Management System is a full-stack web application designed to streamlin
 │         Flask Web Application (app.py)              │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
-│  Routes (Authentication, Loans, Payments)          │
+│  Routes (Authentication, Loans, Payments)           │
 │         ↓                                           │
-│  Database Helpers & Utility Functions              │
+│  Database Helpers & Utility Functions               │
 │         ↓                                           │
-│  MySQL Database (users, loans, payments)           │
+│  MySQL Database (users, loans, payments)            │
 │                                                     │
-│  [SMS Integration via Twilio API]                  │
-│  [PDF Generation via ReportLab]                    │
+│  [SMS Integration via Twilio API]                   │
+│  [PDF Generation via ReportLab]                     │
 └─────────────────────────────────────────────────────┘
 ```
 
