@@ -12,6 +12,8 @@ import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import math
+import json
+import os
 from twilio_config import send_loan_notification, send_payment_notification
 
 # PDF generation
@@ -19,15 +21,25 @@ from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
-app = Flask(__name__)
-app.secret_key = "123"  # change before production
+# Load credentials from credentials.json
+def load_credentials():
+    """Load credentials from credentials.json file"""
+    cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+    if not os.path.exists(cred_path):
+        raise FileNotFoundError(
+            f"credentials.json not found at {cred_path}\n"
+            "Please copy credentials.example.json to credentials.json and fill in your credentials."
+        )
+    with open(cred_path, 'r') as f:
+        return json.load(f)
 
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "Gowdaani#@123",        # fill this with your mysql root password or create a dedicated user
-    "database": "loan_management"
-}
+CREDENTIALS = load_credentials()
+
+app = Flask(__name__)
+app.secret_key = CREDENTIALS['flask']['secret_key']
+app.config['DEBUG'] = CREDENTIALS['flask']['debug']
+
+DB_CONFIG = CREDENTIALS['database']
 
 # --------- Database helpers ----------
 def get_db_connection():

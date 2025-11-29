@@ -174,19 +174,42 @@ pip install -r requirements.txt
 
    The tables are created automatically when the app starts (via `init_db()` function).
 
-### Step 5: Configure Twilio (Optional)
+### Step 5: Configure Credentials
 
-For SMS notifications to work:
+All sensitive credentials (database and Twilio) are stored in a `credentials.json` file:
 
-1. Create a Twilio account at [twilio.com](https://www.twilio.com)
-2. Update `twilio_config.py` with your credentials:
-   ```python
-   TWILIO_ACCOUNT_SID = "your_account_sid"
-   TWILIO_AUTH_TOKEN = "your_auth_token"
-   TWILIO_PHONE_NUMBER = "your_twilio_phone_number"
+1. **Copy the example file:**
+   ```powershell
+   Copy-Item credentials.example.json credentials.json
    ```
 
-Refer to `TWILIO_SETUP.md` for detailed setup instructions.
+2. **Update `credentials.json` with your actual values:**
+   ```json
+   {
+       "database": {
+           "host": "localhost",
+           "user": "root",
+           "password": "YOUR_MYSQL_PASSWORD",
+           "database": "loan_management"
+       },
+       "twilio": {
+           "account_sid": "your_account_sid",
+           "auth_token": "your_auth_token",
+           "phone_number": "+1234567890"
+       },
+       "flask": {
+           "secret_key": "your_secure_secret_key",
+           "debug": true
+       },
+       "app": {
+           "sms_notifications_enabled": true
+       }
+   }
+   ```
+
+⚠️ **Important:** Never commit `credentials.json` to Git (it's in `.gitignore` to keep sensitive data secure).
+
+For detailed Twilio setup instructions, refer to `TWILIO_SETUP.md`.
 
 ### Step 6: Run the Application
 
@@ -301,29 +324,59 @@ CREATE TABLE payments (
 
 ## Configuration
 
-### app.py Configuration
+All configuration is centralized in `credentials.json`, which is ignored by Git.
 
-```python
-# Secret key for session management (change before production!)
-app.secret_key = "123"
+### credentials.json Structure
 
-# Database connection settings
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "your_password",
-    "database": "loan_management"
+```json
+{
+    "database": {
+        "host": "localhost",      // MySQL server hostname
+        "user": "root",           // MySQL username
+        "password": "password",   // MySQL password
+        "database": "loan_management"  // Database name
+    },
+    "twilio": {
+        "account_sid": "ACxxxxxx",           // Your Twilio Account SID
+        "auth_token": "auth_token_here",     // Your Twilio Auth Token
+        "phone_number": "+1234567890"        // Your Twilio phone number
+    },
+    "flask": {
+        "secret_key": "secure_random_string", // Secret key for session management
+        "debug": false                        // Enable/disable debug mode
+    },
+    "app": {
+        "sms_notifications_enabled": true    // Enable/disable SMS notifications
+    }
 }
 ```
 
-### twilio_config.py
+### Setup Instructions
 
-Configure SMS notifications:
-```python
-TWILIO_ACCOUNT_SID = "your_sid"
-TWILIO_AUTH_TOKEN = "your_token"
-TWILIO_PHONE_NUMBER = "+1234567890"
-```
+1. **Copy the example file:**
+   ```powershell
+   Copy-Item credentials.example.json credentials.json
+   ```
+
+2. **Edit `credentials.json` and fill in your values:**
+   - Database credentials (host, user, password, database name)
+   - Twilio credentials (account SID, auth token, phone number)
+   - Flask secret key (generate using `python -c "import secrets; print(secrets.token_hex(32))"`)
+   - Debug mode and SMS notifications settings
+
+### Environment Variables (Legacy - No longer needed)
+
+The app now loads all configuration from `credentials.json`. Environment variables are no longer required.
+
+### Twilio Configuration
+
+For SMS notifications, ensure you have a Twilio account and fill in:
+- `twilio.account_sid`: Your Twilio Account SID from Console
+- `twilio.auth_token`: Your Twilio Auth Token from Console
+- `twilio.phone_number`: Your Twilio phone number (e.g., +1234567890)
+- `app.sms_notifications_enabled`: Set to `true` to enable SMS, `false` to test without SMS
+
+Refer to `TWILIO_SETUP.md` for detailed instructions.
 
 ---
 
@@ -463,41 +516,46 @@ EMI ≈ $888.49
 
 ⚠️ **IMPORTANT: Before deploying to production:**
 
-1. **Change Secret Key**
-   ```python
-   app.secret_key = "generate_a_secure_random_string"
-   ```
-   Generate one using: `python -c "import secrets; print(secrets.token_hex(32))"`
+1. **Credentials Management**
+   - Use `credentials.json` to store all sensitive information
+   - Never commit `credentials.json` to Git (it's in `.gitignore`)
+   - Copy `credentials.example.json` to `credentials.json` and fill in your values
+   - Restrict file permissions: `chmod 600 credentials.json` on Linux/Mac
 
-2. **Update Database Password**
-   - Never hardcode passwords in source code
-   - Use environment variables instead:
+2. **Change Secret Key**
    ```python
-   import os
-   DB_CONFIG = {
-       "host": os.getenv("DB_HOST", "localhost"),
-       "user": os.getenv("DB_USER", "root"),
-       "password": os.getenv("DB_PASSWORD"),
-       "database": os.getenv("DB_NAME", "loan_management")
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+   Update `flask.secret_key` in `credentials.json` with the generated value
+
+3. **Update Database Credentials**
+   - Never use hardcoded passwords
+   - Create a dedicated MySQL user (not root)
+   - Use strong, unique passwords
+   - Store credentials only in `credentials.json`
+
+4. **Set Debug Mode to False**
+   ```json
+   "flask": {
+       "debug": false
    }
    ```
 
-3. **Set Debug Mode to False**
-   ```python
-   app.run(debug=False)  # Not debug=True
-   ```
-
-4. **Use HTTPS in Production**
+5. **Use HTTPS in Production**
    - Deploy on HTTPS only
-   - Protect API endpoints with authentication
+   - Protect all API endpoints with authentication
 
-5. **Input Validation**
+6. **Input Validation**
    - All inputs are validated before database insertion
-   - Prevent SQL injection using parameterized queries
+   - SQL injection prevented using parameterized queries
 
-6. **Password Hashing**
+7. **Password Hashing**
    - Passwords are never stored in plain text
    - Uses Werkzeug's strong hashing algorithms
+
+8. **Environment-Specific Configuration**
+   - Use different `credentials.json` for dev/staging/production
+   - Keep production credentials secure and backed up
 
 ---
 
@@ -549,20 +607,23 @@ taskkill /PID <PID> /F
 
 ```
 Loan-Management-System/
-├── app.py                    # Main Flask application
-├── config.py                 # Database configuration
-├── twilio_config.py          # Twilio SMS configuration
-├── requirements.txt          # Python dependencies
-├── schema.sql               # Database schema (optional reference)
-├── reset_admin.py           # Script to reset admin user
+├── app.py                      # Main Flask application
+├── config.py                   # Legacy config file (replaced by credentials.json)
+├── twilio_config.py            # Twilio SMS configuration and functions
+├── requirements.txt            # Python dependencies
+├── schema.sql                  # Database schema (optional reference)
+├── reset_admin.py              # Script to reset admin user
+├── credentials.json            # ⚠️ Sensitive credentials (NOT in Git, use .gitignore)
+├── credentials.example.json    # Template for credentials (safe to commit)
 ├── static/
 │   └── css/
-│       └── styles.css       # CSS styling
+│       └── styles.css          # CSS styling
 ├── templates/
-│   └── index.html           # Single template file (dynamic pages)
-├── README.md                # This file
-├── LICENSE                  # Project license
-└── TWILIO_SETUP.md          # Twilio integration guide
+│   └── index.html              # Single template file (dynamic pages)
+├── README.md                   # This file
+├── LICENSE                     # Project license
+├── TWILIO_SETUP.md             # Twilio integration guide
+└── .gitignore                  # Git ignore file (includes credentials.json)
 ```
 
 ---

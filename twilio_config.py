@@ -2,24 +2,44 @@
 twilio_config.py
 
 Twilio SMS notification configuration and helper functions.
-Set your Twilio credentials as environment variables or hardcode them below.
-
-Environment variables:
-- TWILIO_ACCOUNT_SID: Your Twilio Account SID
-- TWILIO_AUTH_TOKEN: Your Twilio Auth Token
-- TWILIO_PHONE_NUMBER: Your Twilio phone number (e.g., +1234567890)
+Credentials are loaded from credentials.json file.
 """
 
 import os
+import json
 from twilio.rest import Client
 
-# Twilio credentials - Set these in environment variables for production
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+# Load credentials from credentials.json
+def load_twilio_credentials():
+    """Load Twilio credentials from credentials.json file"""
+    cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+    if not os.path.exists(cred_path):
+        return {
+            "account_sid": "",
+            "auth_token": "",
+            "phone_number": ""
+        }
+    with open(cred_path, 'r') as f:
+        credentials = json.load(f)
+        return credentials.get('twilio', {})
 
-# Flag to enable/disable SMS notifications (useful for testing)
-SMS_NOTIFICATIONS_ENABLED = os.getenv("SMS_NOTIFICATIONS_ENABLED", "True").lower() == "true"
+TWILIO_CREDS = load_twilio_credentials()
+TWILIO_ACCOUNT_SID = TWILIO_CREDS.get('account_sid', '')
+TWILIO_AUTH_TOKEN = TWILIO_CREDS.get('auth_token', '')
+TWILIO_PHONE_NUMBER = TWILIO_CREDS.get('phone_number', '')
+
+# Load SMS notifications enabled flag
+def load_app_config():
+    """Load app configuration from credentials.json file"""
+    cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+    if not os.path.exists(cred_path):
+        return {"sms_notifications_enabled": True}
+    with open(cred_path, 'r') as f:
+        credentials = json.load(f)
+        return credentials.get('app', {})
+
+APP_CONFIG = load_app_config()
+SMS_NOTIFICATIONS_ENABLED = APP_CONFIG.get('sms_notifications_enabled', True)
 
 
 def send_loan_notification(phone_number, borrower_name, principal, annual_rate, term_months, emi):

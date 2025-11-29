@@ -201,6 +201,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Application Credentials - NEVER commit sensitive information
+credentials.json
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
